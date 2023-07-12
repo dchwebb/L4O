@@ -36,7 +36,10 @@ void LFO::calcLFO(uint32_t spread)
 	// Gate on
 	if (adc.fadeIn > 10) {
 		if ((gatePort->IDR & (1 << gatePin)) != 0) {
-			currentLevel = 1.0f - (1.0f - currentLevel) * (0.9999f + ((float)adc.fadeIn / 4096.0f) * 0.0001f);
+			static constexpr float fadeInRate = 0.9995f;
+			static constexpr float fadeInScale = (1.0f - fadeInRate) / 4096.0f;
+
+			currentLevel = 1.0f - (1.0f - currentLevel) * (fadeInRate + (float)adc.fadeIn * fadeInScale);
 		} else {
 			currentLevel = 0.0f;
 		}
