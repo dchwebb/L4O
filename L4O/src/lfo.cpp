@@ -5,6 +5,18 @@
 
 LFOs lfos;
 
+//// Create LED brightness look up table as constexpr so will be stored in flash
+//constexpr auto CreateLEDLUT()		// create exponential brightness curve to better reflect perceived loudness
+//{
+//	std::array<uint16_t, 4096> array {};
+//	for (uint32_t i = 0; i < 4096; ++i){
+//		array[i] = (uint16_t)(4096.0f * std::pow((float)i / 4096.0f, 3.0f));
+//	}
+//	return array;
+//}
+//constexpr std::array<uint16_t, 4096> ledBrightness = CreateLEDLUT();
+
+
 void LFOs::calcLFOs()
 {
 	for (uint8_t i = 0; i < 4; ++i) {
@@ -17,15 +29,21 @@ void LFOs::calcLFOs()
 
 void LFO::calcLFO(uint32_t spread)
 {
-	// Gate on
-	if ((gatePort->IDR & (1 << gatePin)) != 0) {
-
-	}
 	lfoCosPos += (adc.speed + 50) * 200 + spread;
 
-	currentLevel = CordicCos(lfoCosPos);
+	float output = CordicCos(lfoCosPos) * adc.level;
 
-	*outputChn = static_cast<uint32_t>(currentLevel);
+	// Gate on
+	if (adc.fadeIn > 10) {
+		if ((gatePort->IDR & (1 << gatePin)) != 0) {
+			currentLevel = 1.0f - (1.0f - currentLevel) * (0.9999f + ((float)adc.fadeIn / 4096.0f) * 0.0001f);
+		} else {
+			currentLevel = 0.0f;
+		}
+		output *= currentLevel;
+	}
+
+	*outputChn = static_cast<uint32_t>(output);
 }
 
 float LFO::CordicCos(uint32_t pos)
@@ -36,7 +54,7 @@ float LFO::CordicCos(uint32_t pos)
 
 	CORDIC->WDATA = pos;		// This should be a value between -1 and 1 in q1.31 format, relating to -pi to +pi
 
-	return ((static_cast<float>(static_cast<int32_t>(CORDIC->RDATA)) / 4294967296.0f) + 0.5f) * 4000.0f;
+	return ((static_cast<float>(static_cast<int32_t>(CORDIC->RDATA)) / 4294967296.0f) + 0.5f);
 }
 
 
