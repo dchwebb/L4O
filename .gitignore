@@ -1,5 +1,5 @@
 Debug/
-
+Hardware/L4O_Panel-backups/
 
 # Prerequisites
 *.d
@@ -36,6 +36,7 @@ Debug/
 
 Hardware/#auto_saved_files#
 Hardware/_autosave-*
+
 
 
 

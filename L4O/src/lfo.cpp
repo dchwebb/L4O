@@ -21,7 +21,7 @@ void LFOs::calcLFOs()
 {
 	for (uint8_t i = 0; i < 4; ++i) {
 		// Calculate lfo speed spread
-		uint32_t lfoSpread = static_cast<uint32_t>(static_cast<float>(adc.spread) * i * 2);
+		uint32_t lfoSpread = static_cast<uint32_t>(static_cast<float>(adc.spread) * i * 3);
 		lfo[i].calcLFO(lfoSpread);
 	}
 }
@@ -29,7 +29,7 @@ void LFOs::calcLFOs()
 
 void LFO::calcLFO(uint32_t spread)
 {
-	lfoCosPos += (adc.speed + 50) * 200 + spread;
+	lfoCosPos += (adc.speed + 20) * 200 + spread;
 
 	float output = CordicCos(lfoCosPos) * adc.level;
 
@@ -48,6 +48,7 @@ void LFO::calcLFO(uint32_t spread)
 
 	*outputChn = static_cast<uint32_t>(output);
 }
+
 
 float LFO::CordicCos(uint32_t pos)
 {
