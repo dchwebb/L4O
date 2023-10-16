@@ -1,15 +1,12 @@
 #include "initialisation.h"
-#include "usb.h"
 #include "configManager.h"
-#include "SerialHandler.h"
+#include "USB.h"
 #include <cmath>
 #include "lfo.h"
 
 volatile uint32_t SysTickVal;
 volatile ADC adc;
 
-USBHandler usb;
-SerialHandler serial(usb);
 
 extern "C" {
 #include "interrupts.h"
@@ -31,7 +28,7 @@ int main(void)
 	usb.InitUSB();
 
 	while (1) {
-		serial.Command();					// Check for incoming CDC commands
+		usb.cdc.ProcessCommand();	// Check for incoming CDC commands
 	}
 }
 
