@@ -16,14 +16,14 @@ public:
 	LFO(volatile uint32_t* outputChn, GPIO_TypeDef* gatePort, uint8_t gatePin)
 	 : outputChn{outputChn}, gatePort{gatePort}, gatePin{gatePin} {}
 
-	void calcLFO(uint32_t spread);						// Sets the DAC level for LFO
+	void calcLFO(uint32_t spread);				// Sets the DAC level for LFO
 
 private:
 	float CordicCos(uint32_t pos);
 	float CordicExp(float x);
 
-	float              currentLevel = 0.0f;				// The current level of the envelope (held as a float for accuracy of calulculation)
-	uint32_t           lfoCosPos = 0;					// Position of cordic cosine wave in q1.31 format
+	float              currentLevel = 0.0f;		// The current level of the envelope (held as a float for accuracy of calulculation)
+	uint32_t           lfoCosPos = 0;			// Position of cordic cosine wave in q1.31 format
 
 	// Hardware settings for each envelope (DAC Output, GPIO gate input)
 	volatile uint32_t* outputChn;
@@ -35,13 +35,14 @@ private:
 struct LFOs {
 
 public:
-	void calcLFOs();					// Calls calculation on all contained envelopes
+	void calcLFOs();							// Calls calculation on all contained envelopes
 	uint32_t SerialiseConfig(uint8_t** buff);
 	uint32_t StoreConfig(uint8_t* buff);
 
 	struct config_t {
 		float durationMult = 1.0f;
 	} config;
+	bool fadeInSpeed = false;					// True when speed fade in activated
 
 private:
 	LFO lfo[4] = {
@@ -51,9 +52,8 @@ private:
 			{&(DAC3->DHR12R1), GPIOB, 3} 		// PA2 Env4
 	};
 
-	bool fadeInBtn = false;
-	bool fadeInBtnDown = false;
-	uint32_t fadeInBtnUp = 0;
+	bool fadeInBtnDown = false;					// To manage debouncing
+	uint32_t fadeInBtnUp = 0;					// Store systick time button released for debouncing
 };
 
 extern LFOs lfos;

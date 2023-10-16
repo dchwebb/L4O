@@ -5,26 +5,14 @@
 
 LFOs lfos;
 
-//// Create LED brightness look up table as constexpr so will be stored in flash
-//constexpr auto CreateLEDLUT()		// create exponential brightness curve to better reflect perceived loudness
-//{
-//	std::array<uint16_t, 4096> array {};
-//	for (uint32_t i = 0; i < 4096; ++i){
-//		array[i] = (uint16_t)(4096.0f * std::pow((float)i / 4096.0f, 3.0f));
-//	}
-//	return array;
-//}
-//constexpr std::array<uint16_t, 4096> ledBrightness = CreateLEDLUT();
-
-
 void LFOs::calcLFOs()
 {
-	// check if fade-in button has been pressed
+	// check if fade-in button has been pressed with debounce
 	if ((GPIOF->IDR & GPIO_IDR_ID0) == 0) {
 		if (SysTickVal > fadeInBtnUp + 100 && !fadeInBtnDown) {
 			fadeInBtnDown = true;
-			fadeInBtn = !fadeInBtn;
-			if (fadeInBtn) {
+			fadeInSpeed = !fadeInSpeed;
+			if (fadeInSpeed) {
 				GPIOC->ODR |= GPIO_ODR_OD13;
 			} else {
 				GPIOC->ODR &= ~GPIO_ODR_OD13;
@@ -34,7 +22,6 @@ void LFOs::calcLFOs()
 		fadeInBtnUp = SysTickVal;
 		fadeInBtnDown = false;
 	}
-
 
 	for (uint8_t i = 0; i < 4; ++i) {
 		// Calculate lfo speed spread
@@ -46,24 +33,27 @@ void LFOs::calcLFOs()
 
 void LFO::calcLFO(uint32_t spread)
 {
-	lfoCosPos += (adc.speed + 20) * 200 + spread;
+	uint16_t speed = adc.speed;
 
-	float output = CordicCos(lfoCosPos) * adc.level;
-
-	// Gate on
 	if (adc.fadeIn > 10) {
-		if ((gatePort->IDR & (1 << gatePin)) != 0) {
-			static constexpr float fadeInRate = 0.9995f;
+		if ((gatePort->IDR & (1 << gatePin)) != 0) {			// Gate on
+			static constexpr float fadeInRate = 0.9996f;
 			static constexpr float fadeInScale = (1.0f - fadeInRate) / 4096.0f;
 
 			currentLevel = 1.0f - (1.0f - currentLevel) * (fadeInRate + (float)adc.fadeIn * fadeInScale);
 		} else {
 			currentLevel = 0.0f;
 		}
-		output *= currentLevel;
+		if (lfos.fadeInSpeed) {
+			speed *= currentLevel;
+		}
+
+	} else {
+		currentLevel = 1.0f;
 	}
 
-	*outputChn = static_cast<uint32_t>(output);
+	lfoCosPos += (speed + 20) * 200 + spread;
+	*outputChn = static_cast<uint32_t>(CordicCos(lfoCosPos) * adc.level * currentLevel);			// Will output value from 0 - 4095
 }
 
 
