@@ -51,6 +51,9 @@ private:
 			{&(DAC3->DHR12R1), GPIOB, 3} 		// PA2 Env4
 	};
 
+	bool fadeInBtn = false;
+	bool fadeInBtnDown = false;
+	uint32_t fadeInBtnUp = 0;
 };
 
 extern LFOs lfos;

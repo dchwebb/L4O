@@ -19,6 +19,23 @@ LFOs lfos;
 
 void LFOs::calcLFOs()
 {
+	// check if fade-in button has been pressed
+	if ((GPIOF->IDR & GPIO_IDR_ID0) == 0) {
+		if (SysTickVal > fadeInBtnUp + 100 && !fadeInBtnDown) {
+			fadeInBtnDown = true;
+			fadeInBtn = !fadeInBtn;
+			if (fadeInBtn) {
+				GPIOC->ODR |= GPIO_ODR_OD13;
+			} else {
+				GPIOC->ODR &= ~GPIO_ODR_OD13;
+			}
+		}
+	} else if (fadeInBtnDown) {
+		fadeInBtnUp = SysTickVal;
+		fadeInBtnDown = false;
+	}
+
+
 	for (uint8_t i = 0; i < 4; ++i) {
 		// Calculate lfo speed spread
 		uint32_t lfoSpread = static_cast<uint32_t>(static_cast<float>(adc.spread) * i * 3);

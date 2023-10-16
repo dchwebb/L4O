@@ -89,18 +89,23 @@ void InitIO()
 {
 	// MODER 00: Input mode, 01: General purpose output mode, 10: Alternate function mode, 11: Analog mode (reset state)
 
-	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;			// reset and clock control - advanced high performance bus - GPIO port A
-	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOBEN;			// reset and clock control - advanced high performance bus - GPIO port B
+	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;			// Reset and clock control - GPIO port A
+	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOBEN;			// Reset and clock control - GPIO port B
+	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOCEN;			// Reset and clock control - GPIO port C
+	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOFEN;			// Reset and clock control - GPIO port C
 
 	// NB PB6 is used in USB Power delivery and by default has a pull down to ground - disable in the PWR register (datasheet p.60 note 5)
 	PWR->CR3 |= PWR_CR3_UCPD_DBDIS;
 
-	GPIOB->MODER &= ~GPIO_MODER_MODER6;				// configure PB6 gate 1 input
-	GPIOB->MODER &= ~GPIO_MODER_MODER5;				// configure PB5 gate 2 input
-	GPIOB->MODER &= ~GPIO_MODER_MODER4;				// configure PB4 gate 3 input
-	GPIOB->MODER &= ~GPIO_MODER_MODER3;				// configure PB3 gate 4 input
+	GPIOB->MODER &= ~GPIO_MODER_MODER6;				// PB6 gate 1 input
+	GPIOB->MODER &= ~GPIO_MODER_MODER5;				// PB5 gate 2 input
+	GPIOB->MODER &= ~GPIO_MODER_MODER4;				// PB4 gate 3 input
+	GPIOB->MODER &= ~GPIO_MODER_MODER3;				// PB3 gate 4 input
 
+	GPIOF->MODER &= ~GPIO_MODER_MODER0;				// PF0 Fade-in Button input
+	GPIOF->PUPDR |= GPIO_PUPDR_PUPD0_0;				// 00: None; *01: Pull-up; 10: Pull-down
 
+	GPIOC->MODER &= ~GPIO_MODER_MODE13_1;			// PC13 LED Out
 }
 
 
