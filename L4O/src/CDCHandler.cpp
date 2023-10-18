@@ -1,8 +1,10 @@
 #include "USB.h"
 #include "CDCHandler.h"
 #include "configManager.h"
+#include "lfo.h"
 #include <charconv>
 #include <stdarg.h>
+#include <cmath>
 
 // Check if a command has been received from USB, parse and action as required
 void CDCHandler::ProcessCommand()
@@ -15,13 +17,15 @@ void CDCHandler::ProcessCommand()
 
 	if (cmd.compare("info") == 0) {		// Print diagnostic information
 
-		usb->SendString("Mountjoy L4O v1.0 - Current Settings:\r\n\r\n");
-
 		// Use manual float conversion as printf with float support uses more space than we have
-//		uint32_t fltIntPart = std::round(lfos.config.durationMult);
-//		uint32_t fltFrcPart = std::round((lfos.config.durationMult - fltIntPart) * 100);
-//		sprintf(buf, "Envelope multiplier: %ld.%ld\r\n", fltIntPart, fltFrcPart);
-//		usb->SendString(buf);
+		uint32_t fltIntPart = (uint32_t)lfos.settings.fadeInRate;
+		uint32_t fltFrcPart = std::round((lfos.settings.fadeInRate - fltIntPart) * 10000);
+
+		printf("Mountjoy L4O v1.0 - Current Settings:\r\n\r\n"
+				"Fade-in rate: %ld.%ld\r\n"
+				"\r\n",
+				fltIntPart, fltFrcPart);
+
 
 	} else if (cmd.compare("help") == 0) {
 
@@ -41,12 +45,12 @@ void CDCHandler::ProcessCommand()
 		usb->SendString("Press link button to dump output\r\n");
 #endif
 
-	} else if (cmd.compare(0, 5, "mult:") == 0) {		// Set envelope duration multiplier
-//		const float mult = ParseFloat(cmd, ':', 0.1f, 99.9f);
-//		if (mult >= 0.0f) {
-//			lfos.config.durationMult = mult;
-//			configManager.SaveConfig();
-//		}
+	} else if (cmd.compare(0, 7, "fadein:") == 0) {					// Set lfo fade in rate
+		const float val = ParseFloat(cmd, ':', 0.1f, 99.9f);
+		if (val >= 0.0f) {
+			lfos.settings.fadeInRate = val;
+			config.SaveConfig();
+		}
 
 
 	} else {

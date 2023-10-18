@@ -1,5 +1,5 @@
 #include "initialisation.h"
-#include "configManager.h"
+//#include "configManager.h"
 #include "USB.h"
 #include <cmath>
 #include "lfo.h"
@@ -12,6 +12,7 @@ extern "C" {
 #include "interrupts.h"
 }
 
+Config config{&lfos.configSaver};
 
 extern uint32_t SystemCoreClock;
 int main(void)
@@ -24,7 +25,7 @@ int main(void)
 	InitOutputTimer();
 	InitADC(reinterpret_cast<volatile uint16_t*>(&adc));
 	InitCordic();
-	configManager.RestoreConfig();
+	config.RestoreConfig();
 	usb.InitUSB();
 
 	while (1) {

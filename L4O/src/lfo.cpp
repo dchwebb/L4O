@@ -5,14 +5,15 @@
 
 LFOs lfos;
 
-void LFOs::calcLFOs()
+
+void LFOs::CheckFadeInBtn()
 {
 	// check if fade-in button has been pressed with debounce
 	if ((GPIOF->IDR & GPIO_IDR_ID0) == 0) {
 		if (SysTickVal > fadeInBtnUp + 100 && !fadeInBtnDown) {
 			fadeInBtnDown = true;
-			fadeInSpeed = !fadeInSpeed;
-			if (fadeInSpeed) {
+			settings.fadeInSpeed = !settings.fadeInSpeed;
+			if (settings.fadeInSpeed) {
 				GPIOC->ODR |= GPIO_ODR_OD13;
 			} else {
 				GPIOC->ODR &= ~GPIO_ODR_OD13;
@@ -22,6 +23,12 @@ void LFOs::calcLFOs()
 		fadeInBtnUp = SysTickVal;
 		fadeInBtnDown = false;
 	}
+}
+
+
+void LFOs::calcLFOs()
+{
+	CheckFadeInBtn();				// check if fade-in speed button has been pressed
 
 	for (uint8_t i = 0; i < 4; ++i) {
 		// Calculate lfo speed spread
@@ -37,14 +44,12 @@ void LFO::calcLFO(uint32_t spread)
 
 	if (adc.fadeIn > 10) {
 		if ((gatePort->IDR & (1 << gatePin)) != 0) {			// Gate on
-			static constexpr float fadeInRate = 0.9996f;
-			static constexpr float fadeInScale = (1.0f - fadeInRate) / 4096.0f;
 
-			currentLevel = 1.0f - (1.0f - currentLevel) * (fadeInRate + (float)adc.fadeIn * fadeInScale);
+			currentLevel = 1.0f - (1.0f - currentLevel) * (lfos.settings.fadeInRate + (float)adc.fadeIn * lfos.fadeInScale);
 		} else {
 			currentLevel = 0.0f;
 		}
-		if (lfos.fadeInSpeed) {
+		if (lfos.settings.fadeInSpeed) {
 			speed *= currentLevel;
 		}
 
@@ -101,23 +106,18 @@ float LFO::CordicExp(float x)
 }
 
 
-uint32_t LFOs::SerialiseConfig(uint8_t** buff)
+void LFOs::VerifyConfig()
 {
-	*buff = reinterpret_cast<uint8_t*>(&config);
-	return sizeof(config);
-}
-
-
-uint32_t LFOs::StoreConfig(uint8_t* buff)
-{
-	if (buff != nullptr) {
-		memcpy(&config, buff, sizeof(config));
-	}
-
 	// Verify settings and update as required
-	if (config.durationMult < 0.1f || config.durationMult > 9.9f) {
-		config.durationMult = 1.0f;
-	}
 
-	return sizeof(config);
+	if (lfos.settings.fadeInRate < 0.1f || lfos.settings.fadeInRate > 0.99999999f) {
+		lfos.settings.fadeInRate = 0.9996f;
+	}
+	lfos.fadeInScale = (1.0f - lfos.settings.fadeInRate) / 4096.0f;
+
+	if (lfos.settings.fadeInSpeed) {
+		GPIOC->ODR |= GPIO_ODR_OD13;
+	} else {
+		GPIOC->ODR &= ~GPIO_ODR_OD13;
+	}
 }

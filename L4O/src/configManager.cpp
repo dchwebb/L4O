@@ -1,11 +1,13 @@
 #include "configManager.h"
 #include <cmath>
 #include <cstring>
+#include <cstdio>
 
-#include "lfo.h"
+Config::Config(ConfigSaver* cfg)
+{
+	configSavers[0] = cfg;
+}
 
-
-Config configManager;
 
 // called whenever a config setting is changed to schedule a save after waiting to see if any more changes are being made
 void Config::ScheduleSave()
@@ -29,18 +31,20 @@ bool Config::SaveConfig(bool eraseOnly)
 
 	// Check if flash needs erasing
 	for (uint32_t i = 0; i < BufferSize / 4; ++i) {
-		if (addrFlashPage16[i] != 0xFFFFFFFF) {
-			FlashErasePage(16);			// Erase page 16 (See p191 of manual)
+		if (flashConfigAddr[i] != 0xFFFFFFFF) {
+			FlashErasePage(flashConfigPage - 1);			// Erase page
 			break;
 		}
 	}
 
 	if (!eraseOnly) {
-		result = FlashProgram(addrFlashPage16, reinterpret_cast<uint32_t*>(&configBuffer), cfgSize);
+		result = FlashProgram(flashConfigAddr, reinterpret_cast<uint32_t*>(&configBuffer), cfgSize);
 	}
 
 	FlashLock();						// Lock Flash
 	__enable_irq(); 					// Enable Interrupts
+
+	printf(result ? "Config Saved\r\n" : "Error saving config\r\n");
 
 	return result;
 }
@@ -49,18 +53,17 @@ bool Config::SaveConfig(bool eraseOnly)
 uint32_t Config::SetConfig()
 {
 	// Serialise config values into buffer
-	memset(configBuffer, 0xF, sizeof(configBuffer));					// Clear buffer
+	memset(configBuffer, 0xF, sizeof(configBuffer));				// Clear buffer
 	strncpy(reinterpret_cast<char*>(configBuffer), "CFG", 4);		// Header
 	configBuffer[4] = configVersion;
 	uint32_t configPos = 8;											// Position in buffer to store data
-	uint32_t configSize = 0;										// Holds the size of each config buffer
 
-	uint8_t* cfgBuffer = nullptr;
-
-	// Envelope settings
-	configSize = lfos.SerialiseConfig(&cfgBuffer);
-	memcpy(&configBuffer[configPos], cfgBuffer, configSize);
-	configPos += configSize;
+	for (uint8_t i = 0; i < 4; ++i) {
+		if (configSavers[i]) {
+			memcpy(&configBuffer[configPos], configSavers[i]->settingsAddress, configSavers[i]->settingsSize);
+			configPos += configSavers[i]->settingsSize;
+		}
+	}
 
 	// Footer
 	strncpy(reinterpret_cast<char*>(&configBuffer[configPos]), "END", 4);
@@ -72,14 +75,23 @@ uint32_t Config::SetConfig()
 // Restore configuration settings from flash memory
 void Config::RestoreConfig()
 {
-	uint8_t* flashConfig = reinterpret_cast<uint8_t*>(addrFlashPage16);
+	uint8_t* flashConfig = reinterpret_cast<uint8_t*>(flashConfigAddr);
 
 	// Check for config start and version number
 	if (strcmp((char*)flashConfig, "CFG") == 0 && flashConfig[4] == configVersion) {
 		uint32_t configPos = 8;											// Position in buffer to store data
 
-		// Envelope Settings
-		configPos += lfos.StoreConfig(&flashConfig[configPos]);
+		// Save settings
+		for (uint8_t i = 0; i < 4; ++i) {
+			if (configSavers[i]) {
+				memcpy(configSavers[i]->settingsAddress, &flashConfig[configPos], configSavers[i]->settingsSize);
+				if (configSavers[i]->validateSettings != nullptr) {
+					configSavers[i]->validateSettings();
+				}
+			}
+			configPos += configSavers[i]->settingsSize;
+		}
+
 	}
 }
 
@@ -107,6 +119,8 @@ void Config::FlashErasePage(uint8_t page)
 	FLASH->CR |= page << FLASH_CR_PNB_Pos;
 	FLASH->CR |= FLASH_CR_PER;
 	FLASH->CR |= FLASH_CR_STRT;
+	FlashWaitForLastOperation();
+	FLASH->CR &= ~FLASH_CR_PER;		// Unless this bit is cleared programming flash later throws a Programming Sequence error
 }
 
 

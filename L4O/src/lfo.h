@@ -1,6 +1,7 @@
 #pragma once
 
 #include "initialisation.h"
+#include "configManager.h"
 
 struct ADC {
 	uint16_t speed;
@@ -36,15 +37,24 @@ struct LFOs {
 
 public:
 	void calcLFOs();							// Calls calculation on all contained envelopes
-	uint32_t SerialiseConfig(uint8_t** buff);
-	uint32_t StoreConfig(uint8_t* buff);
+	static void VerifyConfig();					// Check config is valid (must be static in order to store pointer)
 
-	struct config_t {
-		float durationMult = 1.0f;
-	} config;
-	bool fadeInSpeed = false;					// True when speed fade in activated
+	struct {
+		float fadeInRate = 0.9996f;
+		bool fadeInSpeed = false;				// True when speed fade in activated
+	} settings;
+
+	float fadeInScale = (1.0f - settings.fadeInRate) / 4096.0f;
+
+	ConfigSaver configSaver = {
+		.settingsAddress = &settings,
+		.settingsSize = sizeof(settings),
+		.validateSettings = &VerifyConfig
+	};
 
 private:
+	void CheckFadeInBtn();
+
 	LFO lfo[4] = {
 			{&(DAC1->DHR12R1), GPIOB, 6},		// PA4 Env1
 			{&(DAC1->DHR12R2), GPIOB, 5},		// PA5 Env2
