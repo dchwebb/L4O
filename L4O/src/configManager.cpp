@@ -2,10 +2,17 @@
 #include <cmath>
 #include <cstring>
 #include <cstdio>
+#include <cstdarg>
 
-Config::Config(ConfigSaver* cfg)
+
+Config::Config(ConfigSaver* cfg...)
 {
-	configSavers[0] = cfg;
+	std::va_list args;
+	va_start(args, cfg);
+	configSavers.push_back(cfg);
+	configSize += configSavers[0]->settingsSize;
+	va_end(args);
+
 }
 
 
@@ -23,26 +30,69 @@ bool Config::SaveConfig(bool eraseOnly)
 	scheduleSave = false;
 	bool result = true;
 
-	uint32_t cfgSize = SetConfig();
+	// FIXME - buffer size should be aligned to block of 64 bits
+	uint8_t* flashConfig = reinterpret_cast<uint8_t*>(flashConfigAddr);
 
-	__disable_irq();					// Disable Interrupts
-	FlashUnlock();						// Unlock Flash memory for writing
-	FLASH->SR = FLASH_ALL_ERRORS;		// Clear error flags in Status Register
+	// Check for config start and version number
+	ConfigHeader* configHeader = (ConfigHeader*)flashConfig;
+
+	uint32_t configBufferSize = configSize;
+	bool addHeader = false;
+
+	// Check if config header is valid: if so get position of current config block, else create header
+	uint8_t* flashPos = flashConfig;
+	if (strcmp(configHeader->startText, "CH") == 0 && configHeader->version == configVersion) {
+		// Header is valid - locate next available location to store config at (first 1 in the bit array)
+		flashPos += sizeof(ConfigHeader);
+		uint32_t pos = 0;
+		while (pos < 64 && configHeader->usedBitArray[pos++] == 0) {
+			flashPos += configSize;
+		}
+	} else {
+		addHeader = true;
+		configBufferSize += sizeof(ConfigHeader);
+	}
+
+	uint8_t configBuffer[configBufferSize];					// Will hold all the data to be written to the
+
+	// Config page does not start with header - create and add to write buffer
+	uint32_t configPos = 0;
+	if (addHeader) {
+		auto ch = new (configBuffer) ConfigHeader{};		// use placement new to construct the header configBuffer
+		configPos = sizeof(ConfigHeader);
+	}
+
+	// Add individual config settings to buffer
+	for (auto& saver : configSavers) {
+		memcpy(&configBuffer[configPos], saver->settingsAddress, saver->settingsSize);
+		configPos += saver->settingsSize;
+	}
+
+	__disable_irq();										// Disable Interrupts
+	FlashUnlock();											// Unlock Flash memory for writing
+	FLASH->SR = FLASH_ALL_ERRORS;							// Clear error flags in Status Register
 
 	// Check if flash needs erasing
-	for (uint32_t i = 0; i < BufferSize / 4; ++i) {
-		if (flashConfigAddr[i] != 0xFFFFFFFF) {
+	bool flashErased = false;
+	for (uint32_t i = 0; i < configBufferSize / 4; ++i) {
+		if (flashPos[i] != 0xFFFFFFFF) {
 			FlashErasePage(flashConfigPage - 1);			// Erase page
+			flashErased = true;
 			break;
 		}
 	}
 
-	if (!eraseOnly) {
-		result = FlashProgram(flashConfigAddr, reinterpret_cast<uint32_t*>(&configBuffer), cfgSize);
+	// If the flash header is valid but the data region to be written to is not blank then the routine will need to be rerun to recreate the header
+	if (!eraseOnly && !(flashErased && !addHeader)) {
+		result = FlashProgram((uint32_t*)flashPos, reinterpret_cast<uint32_t*>(&configBuffer), configBufferSize);
 	}
 
-	FlashLock();						// Lock Flash
-	__enable_irq(); 					// Enable Interrupts
+	FlashLock();											// Lock Flash
+	__enable_irq(); 										// Enable Interrupts
+
+	if (!eraseOnly && flashErased && !addHeader) {			// region to be written is not blank - rerun routine having erased page
+		result = SaveConfig(false);
+	}
 
 	printf(result ? "Config Saved\r\n" : "Error saving config\r\n");
 
@@ -50,25 +100,21 @@ bool Config::SaveConfig(bool eraseOnly)
 }
 
 
-uint32_t Config::SetConfig()
+void Config::SetConfig(uint8_t* configBuffer)
 {
 	// Serialise config values into buffer
-	memset(configBuffer, 0xF, sizeof(configBuffer));				// Clear buffer
-	strncpy(reinterpret_cast<char*>(configBuffer), "CFG", 4);		// Header
-	configBuffer[4] = configVersion;
-	uint32_t configPos = 8;											// Position in buffer to store data
+//	strncpy(reinterpret_cast<char*>(configBuffer), "CFG", 4);		// Header
+//	configBuffer[4] = configVersion;
+//	uint32_t configPos = 8;											// Position in buffer to store data
 
-	for (uint8_t i = 0; i < 4; ++i) {
-		if (configSavers[i]) {
-			memcpy(&configBuffer[configPos], configSavers[i]->settingsAddress, configSavers[i]->settingsSize);
-			configPos += configSavers[i]->settingsSize;
-		}
+	uint32_t configPos = 0;											// Position in buffer to store data
+	for (auto& saver : configSavers) {
+		memcpy(&configBuffer[configPos], saver->settingsAddress, saver->settingsSize);
+		configPos += saver->settingsSize;
 	}
 
 	// Footer
-	strncpy(reinterpret_cast<char*>(&configBuffer[configPos]), "END", 4);
-	configPos += 4;
-	return configPos;
+	//strncpy(reinterpret_cast<char*>(&configBuffer[configPos]), "END", 4);
 }
 
 
@@ -81,15 +127,13 @@ void Config::RestoreConfig()
 	if (strcmp((char*)flashConfig, "CFG") == 0 && flashConfig[4] == configVersion) {
 		uint32_t configPos = 8;											// Position in buffer to store data
 
-		// Save settings
-		for (uint8_t i = 0; i < 4; ++i) {
-			if (configSavers[i]) {
-				memcpy(configSavers[i]->settingsAddress, &flashConfig[configPos], configSavers[i]->settingsSize);
-				if (configSavers[i]->validateSettings != nullptr) {
-					configSavers[i]->validateSettings();
-				}
+		// Restore settings
+		for (auto saver : configSavers) {
+			memcpy(saver->settingsAddress, &flashConfig[configPos], saver->settingsSize);
+			if (saver->validateSettings != nullptr) {
+				saver->validateSettings();
 			}
-			configPos += configSavers[i]->settingsSize;
+			configPos += saver->settingsSize;
 		}
 
 	}

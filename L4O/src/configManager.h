@@ -1,7 +1,7 @@
 #pragma once
 
 #include "initialisation.h"
-
+#include  <bitset>
 
 
 static uint32_t* const addrFlashPage16 = reinterpret_cast<uint32_t*>(0x08007800);			 // Base address of page 16, 2 Kbytes
@@ -26,24 +26,30 @@ public:
 	uint32_t* const flashConfigAddr = reinterpret_cast<uint32_t* const>(0x08000000 + flashPageSize * (flashConfigPage - 1));
 
 	bool scheduleSave = false;
-	uint32_t saveBooked;
-	uint8_t configBuffer[BufferSize];
+	uint32_t saveBooked = false;
 
-	ConfigSaver* configSavers[4];
+	std::vector<ConfigSaver*> configSavers;
+	uint32_t configSize = 0;
 
-	Config(ConfigSaver* cfg);
+	Config(ConfigSaver* cfg...);
 	void Calibrate();
 	void ScheduleSave();				// called whenever a config setting is changed to schedule a save after waiting to see if any more changes are being made
 	bool SaveConfig(bool eraseOnly = false);
-	uint32_t SetConfig();				// Serialise configuration data into buffer
+	void SetConfig(uint8_t* configBuffer);				// Serialise configuration data into buffer
 	void RestoreConfig();				// gets config from Flash, checks and updates settings accordingly
+
+private:
+	struct ConfigHeader {
+		char startText[2] = {'C', 'H'};
+		uint16_t version = configVersion;
+		std::bitset<64> usedBitArray {0xFFFFFFFF'FFFFFFFF};
+	};
 
 	void FlashUnlock();
 	void FlashLock();
 	void FlashErasePage(uint8_t Sector);
 	bool FlashWaitForLastOperation();
 	bool FlashProgram(uint32_t* dest_addr, uint32_t* src_addr, size_t size);
-private:
 
 
 };

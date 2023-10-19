@@ -169,7 +169,8 @@ float CDCHandler::ParseFloat(const std::string_view cmd, const char precedingCha
 		val = std::stof(&cmd[pos + 1]);
 	}
 	if (high > low && (val > high || val < low)) {
-		printf("Must be a value between %f and %f\r\n", low, high);
+		//printf("Must be a value between %f and %f\r\n", low, high);		// FIXME - not enough space for printf floats
+		printf("Invalid value\r\n");
 		return low - 1.0f;
 	}
 	return val;
