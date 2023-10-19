@@ -52,6 +52,8 @@ void CDCHandler::ProcessCommand()
 			config.SaveConfig();
 		}
 
+	} else if (cmd.compare("eraseflash") == 0) {					// Erase config settings
+		config.EraseConfig();
 
 	} else {
 		usb->SendString("Unrecognised command: " + std::string(cmd) + " Type 'help' for supported commands\r\n");

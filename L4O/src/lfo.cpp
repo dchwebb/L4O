@@ -18,6 +18,7 @@ void LFOs::CheckFadeInBtn()
 			} else {
 				GPIOC->ODR &= ~GPIO_ODR_OD13;
 			}
+			config.SaveConfig();
 		}
 	} else if (fadeInBtnDown) {
 		fadeInBtnUp = SysTickVal;
@@ -44,7 +45,6 @@ void LFO::calcLFO(uint32_t spread)
 
 	if (adc.fadeIn > 10) {
 		if ((gatePort->IDR & (1 << gatePin)) != 0) {			// Gate on
-
 			currentLevel = 1.0f - (1.0f - currentLevel) * (lfos.settings.fadeInRate + (float)adc.fadeIn * lfos.fadeInScale);
 		} else {
 			currentLevel = 0.0f;

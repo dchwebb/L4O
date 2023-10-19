@@ -28,22 +28,18 @@ public:
 	bool scheduleSave = false;
 	uint32_t saveBooked = false;
 
-	std::vector<ConfigSaver*> configSavers;
-	uint32_t configSize = 0;
-
-	Config(ConfigSaver* cfg...);
-	void Calibrate();
+	Config(ConfigSaver* cfg...);		// Constructor called passing any components that need settings saved
 	void ScheduleSave();				// called whenever a config setting is changed to schedule a save after waiting to see if any more changes are being made
-	bool SaveConfig(bool eraseOnly = false);
-	void SetConfig(uint8_t* configBuffer);				// Serialise configuration data into buffer
+	bool SaveConfig();
+	void EraseConfig();					// Erase flash page containing config
 	void RestoreConfig();				// gets config from Flash, checks and updates settings accordingly
 
 private:
-	struct ConfigHeader {
-		char startText[2] = {'C', 'H'};
-		uint16_t version = configVersion;
-		std::bitset<64> usedBitArray {0xFFFFFFFF'FFFFFFFF};
-	};
+	std::vector<ConfigSaver*> configSavers;
+	uint32_t configSize = 0;
+
+	const char ConfigHeader[4] = {'C', 'F', 'G', configVersion};
+	int32_t currentSettingsOffset = -1;
 
 	void FlashUnlock();
 	void FlashLock();
