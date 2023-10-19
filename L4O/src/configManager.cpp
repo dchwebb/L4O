@@ -5,36 +5,6 @@
 #include <cstdarg>
 
 
-uint32_t AlignTo8Bytes(uint32_t val)
-{
-	val += 7;
-	val >>= 3;
-	val <<= 3;
-	return val;
-}
-
-
-Config::Config(ConfigSaver* cfg...)
-{
-	std::va_list args;
-	va_start(args, cfg);
-	configSavers.push_back(cfg);
-	configSize += configSavers[0]->settingsSize;
-	va_end(args);
-
-	// Ensure config size (plus 4 byte header) is aligned to 8 byte boundary
-	configSize = AlignTo8Bytes(configSize + sizeof(ConfigHeader));
-}
-
-
-void Config::ScheduleSave()
-{
-	// called whenever a config setting is changed to schedule a save after waiting to see if any more changes are being made
-	scheduleSave = true;
-	saveBooked = SysTickVal;
-}
-
-
 bool Config::SaveConfig()
 {
 	// Write config settings to Flash memory
@@ -71,7 +41,7 @@ bool Config::SaveConfig()
 
 	__disable_irq();									// Disable Interrupts
 	FlashUnlock();										// Unlock Flash memory for writing
-	FLASH->SR = FLASH_ALL_ERRORS;						// Clear error flags in Status Register
+	FLASH->SR = flashAllErrors;							// Clear error flags in Status Register
 
 	if (eraseFlash) {
 		FlashErasePage(flashConfigPage - 1);
@@ -88,7 +58,7 @@ bool Config::SaveConfig()
 
 void Config::RestoreConfig()
 {
-	// Locate last (active) config block
+	// Locate latest (active) config block
 	uint32_t pos = 0;
 	while (pos < flashPageSize - configSize) {
 		if (*(flashConfigAddr + pos / 4) == *(uint32_t*)ConfigHeader) {
@@ -119,7 +89,7 @@ void Config::EraseConfig()
 {
 	__disable_irq();									// Disable Interrupts
 	FlashUnlock();										// Unlock Flash memory for writing
-	FLASH->SR = FLASH_ALL_ERRORS;						// Clear error flags in Status Register
+	FLASH->SR = flashAllErrors;							// Clear error flags in Status Register
 
 	FlashErasePage(flashConfigPage - 1);
 
@@ -129,20 +99,27 @@ void Config::EraseConfig()
 }
 
 
+void Config::ScheduleSave()
+{
+	// called whenever a config setting is changed to schedule a save after waiting to see if any more changes are being made
+	scheduleSave = true;
+	saveBooked = SysTickVal;
+}
+
+
 void Config::FlashUnlock()
 {
 	// Unlock the FLASH control register access
 	if ((FLASH->CR & FLASH_CR_LOCK) != 0)  {
-		FLASH->KEYR = 0x45670123U;					// These magic numbers unlock the flash for programming
+		FLASH->KEYR = 0x45670123U;						// These magic numbers unlock the flash for programming
 		FLASH->KEYR = 0xCDEF89ABU;
 	}
 }
 
 
-// Lock the FLASH Registers access
 void Config::FlashLock()
 {
-	FLASH->CR |= FLASH_CR_LOCK;
+	FLASH->CR |= FLASH_CR_LOCK;							// Lock the FLASH Registers access
 }
 
 
@@ -159,8 +136,8 @@ void Config::FlashErasePage(uint8_t page)
 
 bool Config::FlashWaitForLastOperation()
 {
-	if (FLASH->SR & FLASH_ALL_ERRORS) {						// If any error occurred abort
-		FLASH->SR = FLASH_ALL_ERRORS;						// Clear all errors
+	if (FLASH->SR & flashAllErrors) {						// If any error occurred abort
+		FLASH->SR = flashAllErrors;							// Clear all errors
 		return false;
 	}
 
