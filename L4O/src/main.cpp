@@ -1,6 +1,5 @@
 #include "initialisation.h"
 #include "USB.h"
-#include <cmath>
 #include "lfo.h"
 
 volatile uint32_t SysTickVal;
@@ -12,7 +11,6 @@ extern "C" {
 
 Config config{&lfos.configSaver};		// Initialise configuration to handle saving and restoring lfo settings
 
-extern uint32_t SystemCoreClock;
 int main(void)
 {
 	SystemInit();						// Activates floating point coprocessor and resets clock
