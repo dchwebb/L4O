@@ -14,13 +14,13 @@ bool Config::SaveConfig()
 	if (currentSettingsOffset == -1) {					// First set in RestoreConfig
 		currentSettingsOffset = 0;
 	} else {
-		currentSettingsOffset += configSize;
+		currentSettingsOffset += settingsSize;
 	}
 	uint32_t* flashPos = flashConfigAddr + currentSettingsOffset / 4;
 
 	// Check if flash needs erasing
 	bool eraseFlash = false;
-	for (uint32_t i = 0; i < configSize / 4; ++i) {
+	for (uint32_t i = 0; i < settingsSize / 4; ++i) {
 		if (flashPos[i] != 0xFFFFFFFF) {
 			eraseFlash = true;
 			currentSettingsOffset = 0;					// Reset offset of current settings to beginning of page
@@ -29,7 +29,7 @@ bool Config::SaveConfig()
 		}
 	}
 
-	uint8_t configBuffer[configSize];					// Will hold all the data to be written to the
+	uint8_t configBuffer[settingsSize];					// Will hold all the data to be written to the
 	memcpy(configBuffer, ConfigHeader, 4);
 
 	// Add individual config settings to buffer after header
@@ -46,7 +46,7 @@ bool Config::SaveConfig()
 	if (eraseFlash) {
 		FlashErasePage(flashConfigPage - 1);
 	}
-	result = FlashProgram(flashPos, reinterpret_cast<uint32_t*>(&configBuffer), configSize);
+	result = FlashProgram(flashPos, reinterpret_cast<uint32_t*>(&configBuffer), settingsSize);
 
 	FlashLock();										// Lock Flash
 	__enable_irq(); 									// Enable Interrupts
@@ -60,10 +60,10 @@ void Config::RestoreConfig()
 {
 	// Locate latest (active) config block
 	uint32_t pos = 0;
-	while (pos < flashPageSize - configSize) {
+	while (pos < flashPageSize - settingsSize) {
 		if (*(flashConfigAddr + pos / 4) == *(uint32_t*)ConfigHeader) {
 			currentSettingsOffset = pos;
-			pos += configSize;
+			pos += settingsSize;
 		} else {
 			break;			// Either reached the end of the page or found the latest valid config block
 		}

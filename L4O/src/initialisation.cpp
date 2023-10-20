@@ -110,19 +110,20 @@ void InitIO()
 }
 
 
-//	Setup Timer 3 on an interrupt to trigger sample output
 void InitOutputTimer()
 {
-	RCC->APB1ENR1 |= RCC_APB1ENR1_TIM3EN;			// Enable Timer 3
-	TIM3->PSC = 34;									// Set prescaler
-	TIM3->ARR = 103; 								// Set auto reload register - 170Mhz / 33 / 103 = ~50kHz
+	//	Setup Timer on an interrupt to trigger sample output
 
-	TIM3->DIER |= TIM_DIER_UIE;						// DMA/interrupt enable register
-	NVIC_EnableIRQ(TIM3_IRQn);
-	NVIC_SetPriority(TIM3_IRQn, 0);					// Lower is higher priority
+	RCC->APB1ENR1 |= RCC_APB1ENR1_TIM4EN;			// Enable Timer
+	TIM4->PSC = 34;									// Set prescaler
+	TIM4->ARR = 103; 								// Set auto reload register - 170Mhz / 33 / 103 = ~50kHz
 
-	TIM3->CR1 |= TIM_CR1_CEN;
-	TIM3->EGR |= TIM_EGR_UG;						//  Re-initializes counter and generates update of registers
+	TIM4->DIER |= TIM_DIER_UIE;						// DMA/interrupt enable register
+	NVIC_EnableIRQ(TIM4_IRQn);
+	NVIC_SetPriority(TIM4_IRQn, 0);					// Lower is higher priority
+
+	TIM4->CR1 |= TIM_CR1_CEN;
+	TIM4->EGR |= TIM_EGR_UG;						//  Re-initializes counter and generates update of registers
 }
 
 

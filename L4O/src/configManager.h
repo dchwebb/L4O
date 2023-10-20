@@ -26,10 +26,10 @@ public:
 	// Constructor taking multiple config savers: Get total config block size from each saver
 	Config(std::initializer_list<ConfigSaver*> initList) : configSavers(initList) {
 		for (auto saver : configSavers) {
-			configSize += saver->settingsSize;
+			settingsSize += saver->settingsSize;
 		}
 		// Ensure config size (plus 4 byte header) is aligned to 8 byte boundary
-		configSize = AlignTo8Bytes(configSize + sizeof(ConfigHeader));
+		settingsSize = AlignTo8Bytes(settingsSize + sizeof(ConfigHeader));
 	}
 
 	void ScheduleSave();				// called whenever a config setting is changed to schedule a save after waiting to see if any more changes are being made
@@ -41,7 +41,7 @@ private:
 	static constexpr uint32_t flashAllErrors = FLASH_SR_OPERR  | FLASH_SR_PROGERR | FLASH_SR_WRPERR | FLASH_SR_PGAERR | FLASH_SR_SIZERR | FLASH_SR_PGSERR | FLASH_SR_MISERR | FLASH_SR_FASTERR | FLASH_SR_RDERR  | FLASH_SR_OPTVERR;
 
 	const std::vector<ConfigSaver*> configSavers;
-	uint32_t configSize = 0;
+	uint32_t settingsSize = 0;
 
 	const char ConfigHeader[4] = {'C', 'F', 'G', configVersion};
 	int32_t currentSettingsOffset = -1;

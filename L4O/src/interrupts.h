@@ -3,8 +3,8 @@ void SysTick_Handler(void) {
 	SysTickVal++;
 }
 
-void TIM3_IRQHandler() {
-	TIM3->SR &= ~TIM_SR_UIF;
+void TIM4_IRQHandler() {
+	TIM4->SR &= ~TIM_SR_UIF;
 	//GPIOC->ODR |= GPIO_IDR_ID6;
 	lfos.calcLFOs();
 	//GPIOC->ODR &= ~GPIO_ODR_ODR_6;
