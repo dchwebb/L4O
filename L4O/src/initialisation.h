@@ -15,5 +15,5 @@ void InitIO();
 void InitOutputTimer();
 void InitADC(volatile uint16_t* ADC_array);
 void InitCordic();
-
+void InitPWMTimer();
 

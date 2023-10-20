@@ -236,4 +236,57 @@ void InitCordic()
 }
 
 
+void InitPWMTimer()
+{
+	// LED PWM:
+	// Led1  PA6   TIM3_CH1  AF2
+	// Led2  PA7   TIM3_CH2  AF2
+	// Led3  PA9   TIM2_CH3  AF10
+	// Led4  PB11  TIM2_CH4  AF1
+	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;			// reset and clock control - advanced high performance bus - GPIO port A
+	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOBEN;			// reset and clock control - advanced high performance bus - GPIO port B
+	RCC->APB1ENR1 |= RCC_APB1ENR1_TIM2EN;
+	RCC->APB1ENR1 |= RCC_APB1ENR1_TIM3EN;
+
+	// 00: Input mode; 01: General purpose output mode; 10: Alternate function mode; 11: Analog mode (default)
+	GPIOA->MODER &= ~(GPIO_MODER_MODE6_0 | GPIO_MODER_MODE7_0 | GPIO_MODER_MODE9_0);	// AF
+	GPIOB->MODER &= ~GPIO_MODER_MODE11_0;
+
+	GPIOA->AFR[0] |= (GPIO_AFRL_AFSEL6_1 | GPIO_AFRL_AFSEL7_1);							// AF2
+	GPIOA->AFR[1] |= 10 << GPIO_AFRH_AFSEL9_Pos;										// AF10
+	GPIOB->AFR[1] |= GPIO_AFRH_AFSEL11_0;												// AF1
+
+	TIM3->CCMR1 |= TIM_CCMR1_OC1PE;					// Output compare 1 preload enable
+	TIM3->CCMR1 |= TIM_CCMR1_OC2PE;					// Output compare 2 preload enable
+	TIM2->CCMR2 |= TIM_CCMR2_OC3PE;					// Output compare 3 preload enable
+	TIM2->CCMR2 |= TIM_CCMR2_OC4PE;					// Output compare 4 preload enable
+
+	TIM3->CCMR1 |= (TIM_CCMR1_OC1M_1 | TIM_CCMR1_OC1M_2);	// 0110: PWM mode 1 - In upcounting, channel 1 active if TIMx_CNT<TIMx_CCR1
+	TIM3->CCMR1 |= (TIM_CCMR1_OC2M_1 | TIM_CCMR1_OC2M_2);	// 0110: PWM mode 1 - In upcounting, channel 2 active if TIMx_CNT<TIMx_CCR2
+	TIM2->CCMR2 |= (TIM_CCMR2_OC3M_1 | TIM_CCMR2_OC3M_2);	// 0110: PWM mode 1 - In upcounting, channel 3 active if TIMx_CNT<TIMx_CCR3
+	TIM2->CCMR2 |= (TIM_CCMR2_OC4M_1 | TIM_CCMR2_OC4M_2);	// 0110: PWM mode 1 - In upcounting, channel 3 active if TIMx_CNT<TIMx_CCR3
+
+	TIM3->CCR1 = 0;									// Initialise PWM level to 0
+	TIM3->CCR2 = 0;
+	TIM2->CCR3 = 0;
+	TIM2->CCR4 = 0;
+
+	// Timing calculations: Clock = 170MHz / (PSC + 1) = 34m counts per second
+	// ARR = number of counts per PWM tick = 4096
+	// 34m / ARR = 8.3kHz of PWM square wave with 4096 levels of output
+	TIM2->ARR = 4095;								// Total number of PWM ticks
+	TIM2->PSC = 4;
+	TIM2->CR1 |= TIM_CR1_ARPE;						// 1: TIMx_ARR register is buffered
+	TIM2->CCER |= (TIM_CCER_CC3E | TIM_CCER_CC4E);	// Capture mode enabled / OC1 signal is output on the corresponding output pin
+	TIM2->EGR |= TIM_EGR_UG;						// 1: Re-initialize the counter and generates an update of the registers
+
+	TIM3->ARR = 4095;								// Total number of PWM ticks
+	TIM3->PSC = 4;
+	TIM3->CR1 |= TIM_CR1_ARPE;						// 1: TIMx_ARR register is buffered
+	TIM3->CCER |= (TIM_CCER_CC1E | TIM_CCER_CC2E);	// Capture mode enabled / OC1 signal is output on the corresponding output pin
+	TIM3->EGR |= TIM_EGR_UG;						// 1: Re-initialize the counter and generates an update of the registers
+
+
+	TIM2->CR1 |= TIM_CR1_CEN;						// Enable counter
+}
 
