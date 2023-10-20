@@ -2,7 +2,6 @@
 #include <cmath>
 #include <cstring>
 #include <cstdio>
-#include <cstdarg>
 
 
 bool Config::SaveConfig()
